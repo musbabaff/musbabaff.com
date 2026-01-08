@@ -3,7 +3,7 @@
 // Copyright (c) 2023 Nelson Lai
 // Source: https://github.com/nelsonlaidev
 //
-// Modified by: Zahin Mohammad
+// Modified by: Musbabaff
 
 import { Section, SeeMore } from "@/components/ui"
 // import SectionHeader from '@/components/ui/SectionHeader'

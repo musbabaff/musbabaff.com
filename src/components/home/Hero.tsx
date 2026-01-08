@@ -82,7 +82,7 @@ export default function Hero() {
                     <div className="hidden md:flex items-center justify-center w-full max-w-[150px] sm:max-w-[1800px] md:max-w-[200px] lg:max-w-[250px] flex-shrink-0">
                         <HeroBanner
                             src={src}
-                            alt="Zahin"
+                            alt="Musbabaff"
                             className="w-full h-auto rounded-full object-cover shadow-lg ring-1 ring-border dark:ring-border/50"
                         />
                     </div>

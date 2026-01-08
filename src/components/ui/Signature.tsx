@@ -9,8 +9,8 @@ export default function Signature({ className = "w-full h-auto" }: { readonly cl
 
     // Based on dark mode state, choose the correct logo
     const logoSrc = theme === "dark"
-        ? "https://res.cloudinary.com/dsh30sjju/image/upload/v1760704703/Gemini_Generated_Image_2bce652bce652bce-removebg-preview_gv9ega.png"
-        : "https://res.cloudinary.com/dsh30sjju/image/upload/v1760704508/image_xvovtk.svg";
+        ? ""
+        : "";
 
     return (
         <BlurImage
