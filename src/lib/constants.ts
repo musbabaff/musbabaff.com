@@ -8,7 +8,7 @@ export const MY_NAME = process.env.NEXT_PUBLIC_MY_NAME || "Zahin";
 export const MY_FULL_NAME = process.env.NEXT_PUBLIC_MY_FULL_NAME || "Zahin Mohammad";
 export const MY_USERNAME = process.env.NEXT_PUBLIC_MY_USERNAME || "isherezahin";
 export const MY_DESIGNATION = process.env.NEXT_PUBLIC_MY_DESIGNATION || "Software Developer";
-export const SITE_USER_LOGO = process.env.NEXT_PUBLIC_SITE_USER_LOGO || "https://res.cloudinary.com/dsh30sjju/image/upload/v1761056901/darklogo_eos1ps.png";
+export const SITE_USER_LOGO = process.env.NEXT_PUBLIC_SITE_USER_LOGO || "https://res.cloudinary.com/dmvfzzqs0/image/upload/v1767893100/profile-pic_1_rdjaez.png";
 
 export const MY_MAIL = `${MY_USERNAME}@gmail.com`;
 export const MY_LOCATION = "Baku, Azerbaijan";

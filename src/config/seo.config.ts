@@ -29,7 +29,7 @@ export const PERSON = {
 
   // Profile Image (Important for Knowledge Panel - use a clear, professional photo)
   image: {
-    url: process.env.NEXT_PUBLIC_PROFILE_IMAGE || "https://res.cloudinary.com/dsh30sjju/image/upload/v1761056901/darklogo_eos1ps.png",
+    url: process.env.NEXT_PUBLIC_PROFILE_IMAGE || "https://res.cloudinary.com/dmvfzzqs0/image/upload/v1767893100/profile-pic_1_rdjaez.png",
     width: 400,
     height: 400,
     altText: "Mustafa Babayev - Software Developer",
@@ -189,7 +189,7 @@ export const SITE = {
   // Logo & Images
   logo:
     process.env.NEXT_PUBLIC_SITE_USER_LOGO ||
-    "https://res.cloudinary.com/dsh30sjju/image/upload/v1761056901/darklogo_eos1ps.png",
+    "https://res.cloudinary.com/dmvfzzqs0/image/upload/v1767893100/profile-pic_1_rdjaez.png",
   favicon: "/assets/images/logoicon.png",
   ogImage: {
     width: 1200,
