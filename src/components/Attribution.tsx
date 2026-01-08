@@ -44,15 +44,15 @@ export default function Attribution() {
             <div className="font-normal text-secondary-foreground mb-6 leading-relaxed">
                 This website was originally created by{" "}
                 <ReferralLink
-                    href="https://github.com/isherezahin"
+                    href="https://github.com/musbabaff"
                     className="text-foreground font-medium transition-opacity"
                 >
-                    Zahin
+                    Mustafa
                 </ReferralLink>{" "}
                 as an open-source portfolio template built with Next.js and Tailwind CSS.
                 The complete source code is available on{" "}
                 <ReferralLink
-                    href="https://github.com/isherezahin/isherezahin.me"
+                    href="https://github.com/musbabaff/musbabaff.com"
                     className="text-foreground font-medium transition-opacity"
                 >
                     GitHub
@@ -113,10 +113,10 @@ export default function Attribution() {
                 <div className="text-sm text-secondary-foreground leading-relaxed">
                     For questions about this project or collaboration inquiries, contact{" "}
                     <a
-                        href="mailto:isherezahin@gmail.com"
+                        href="mailto:musbabaff@gmail.com"
                         className="text-foreground font-medium underline hover:opacity-80 transition-opacity"
                     >
-                        isherezahin@gmail.com
+                        musbabaff@gmail.com
                     </a>
                     .
                 </div>

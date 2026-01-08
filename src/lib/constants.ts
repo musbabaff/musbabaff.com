@@ -4,9 +4,9 @@ export const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 export const IS_SERVER = typeof window === 'undefined';
 
 // Personal Information
-export const MY_NAME = process.env.NEXT_PUBLIC_MY_NAME || "Zahin";
-export const MY_FULL_NAME = process.env.NEXT_PUBLIC_MY_FULL_NAME || "Zahin Mohammad";
-export const MY_USERNAME = process.env.NEXT_PUBLIC_MY_USERNAME || "isherezahin";
+export const MY_NAME = process.env.NEXT_PUBLIC_MY_NAME || "Mustafa";
+export const MY_FULL_NAME = process.env.NEXT_PUBLIC_MY_FULL_NAME || "Mustafa Babayev";
+export const MY_USERNAME = process.env.NEXT_PUBLIC_MY_USERNAME || "musbabaff";
 export const MY_DESIGNATION = process.env.NEXT_PUBLIC_MY_DESIGNATION || "Software Developer";
 export const SITE_USER_LOGO = process.env.NEXT_PUBLIC_SITE_USER_LOGO || "https://res.cloudinary.com/dmvfzzqs0/image/upload/v1767893100/profile-pic_1_rdjaez.png";
 
@@ -21,7 +21,7 @@ export const SITE_YOUTUBE_URL = `https://www.youtube.com/@${MY_USERNAME}`;
 export const SITE_LINKEDIN_URL = `https://www.linkedin.com/in/${MY_USERNAME}`;
 
 // Base Domain
-export const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "isherezahin.me";
+export const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "musbabaff.com";
 export const BASE_URL = `https://${BASE_DOMAIN}`;
 
 // SEO Keywords

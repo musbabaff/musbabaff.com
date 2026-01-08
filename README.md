@@ -98,13 +98,13 @@ A modern, full-featured personal portfolio and blog platform built with Next.js 
 #### Blog Mail
 
 <div align="center">
-  <img src="public/assets/images/web/blog-mail-temp.png" alt="Blog Mail Template" width="600" />
+  <img src="public/assets/images/web/blog-mail-temp" alt="Blog Mail Template" width="600" />
 </div>
 
 #### Subscription OTP Mail
 
 <div align="center">
-  <img src="public/assets/images/web/otp-temp.png" alt="Subscription OTP Mail Template" width="600" />
+  <img src="public/assets/images/web/otp-temp" alt="Subscription OTP Mail Template" width="600" />
 </div>
 
 ---
