@@ -1,10 +1,4 @@
 <div align="center">
-  <a href="https://musbabaff.vercel.app?ref=https://github.com/musbabaff/musbabaff.com">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="public/assets/images/web/dark.png">
-      <img alt="Project Cover" src="public/assets/images/web/light.png">
-    </picture>
-  </a> 
 
   <h1 align="center">musbabaff.com</h1> 
 
