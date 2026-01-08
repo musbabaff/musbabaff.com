@@ -1,0 +1,462 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useReducer } from "react";
+import { toast } from "sonner";
+
+import { DiscussionContext } from "@/lib/contexts";
+import { discussionApi } from "@/lib/github/api";
+import {
+    createTempComment,
+    createTempReply,
+    formatCommentResponse,
+    hasUserReacted,
+} from "@/lib/github/helpers";
+import type { Comment, DiscussionContextType, ReactionKey, ReactionUser, Reply } from "@/lib/github/types";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { discussionReducer, initialDiscussionState } from "@/lib/reducers/DiscussionReducer";
+
+interface DiscussionProviderProps {
+    children: React.ReactNode;
+    discussionNumber?: number;
+    authUsername?: string | null;
+}
+
+export function DiscussionProvider({ children, discussionNumber = 1, authUsername = null }: Readonly<DiscussionProviderProps>) {
+    const { user } = useAuth();
+    const avatarUrl = useMemo(() => user?.image ?? undefined, [user?.image]);
+
+    const [state, dispatch] = useReducer(discussionReducer, {
+        ...initialDiscussionState,
+        authUsername,
+    });
+
+    // Sync auth username
+    useEffect(() => {
+        dispatch({ type: "SET_AUTH_USERNAME", payload: authUsername });
+    }, [authUsername]);
+
+    // Fetch comments for the discussion (initial load or sort change)
+    const fetchComments = useCallback(async (sort: "newest" | "oldest" | "popular" = state.sortBy) => {
+        try {
+            dispatch({ type: "SET_LOADING", payload: true });
+            const data = await discussionApi.fetchComments(discussionNumber, 10, undefined, sort);
+            dispatch({ type: "SET_COMMENTS", payload: data.comments });
+            dispatch({ type: "SET_DISCUSSION_ID", payload: data.discussionId });
+            dispatch({
+                type: "SET_PAGINATION", payload: {
+                    total: data.total,
+                    hasNextPage: data.hasNextPage,
+                    endCursor: data.endCursor
+                }
+            });
+            dispatch({ type: "SET_ERROR", payload: null });
+        } catch (err) {
+            console.error(err);
+            const errorMessage = "Failed to load comments";
+            dispatch({ type: "SET_ERROR", payload: errorMessage });
+            toast.error(errorMessage);
+        } finally {
+            dispatch({ type: "SET_LOADING", payload: false });
+        }
+    }, [discussionNumber, state.sortBy]);
+
+    // Fetch more comments (pagination)
+    const fetchMoreComments = useCallback(async () => {
+        if (!state.hasNextPage || state.loadingMore) return;
+
+        try {
+            dispatch({ type: "SET_LOADING_MORE", payload: true });
+            const data = await discussionApi.fetchComments(discussionNumber, 10, state.endCursor || undefined, state.sortBy);
+            dispatch({ type: "APPEND_COMMENTS", payload: data.comments });
+            dispatch({
+                type: "SET_PAGINATION", payload: {
+                    total: data.total,
+                    hasNextPage: data.hasNextPage,
+                    endCursor: data.endCursor
+                }
+            });
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to load more comments");
+        } finally {
+            dispatch({ type: "SET_LOADING_MORE", payload: false });
+        }
+    }, [discussionNumber, state.hasNextPage, state.loadingMore, state.endCursor, state.sortBy]);
+
+    // Handle sort change - refetch from backend
+    const handleSetSortBy = useCallback((sort: "newest" | "oldest" | "popular") => {
+        if (sort === state.sortBy) return;
+        dispatch({ type: "SET_SORT", payload: sort });
+        fetchComments(sort);
+    }, [state.sortBy, fetchComments]);
+
+    // Fetch replies for a comment
+    const fetchReplies = useCallback(
+        async (commentId: string) => {
+            try {
+                dispatch({
+                    type: "SET_LOADED_REPLIES_LOADING",
+                    payload: { commentId, loading: true },
+                });
+                const data = await discussionApi.fetchReplies(discussionNumber, commentId);
+                dispatch({
+                    type: "SET_LOADED_REPLIES",
+                    payload: { commentId, replies: data.replies },
+                });
+            } catch (err) {
+                console.error("Failed to fetch replies:", err);
+                const errorMessage = "Failed to load replies";
+                dispatch({ type: "SET_ERROR", payload: errorMessage });
+                toast.error(errorMessage);
+            } finally {
+                dispatch({
+                    type: "SET_LOADED_REPLIES_LOADING",
+                    payload: { commentId, loading: false },
+                });
+            }
+        },
+        [discussionNumber]
+    );
+
+    // Add new comment
+    const addComment = useCallback(
+        async (body: string) => {
+            try {
+                const tempComment = createTempComment(body, state.authUsername || "You", avatarUrl);
+
+                dispatch({ type: "ADD_COMMENT", payload: tempComment });
+                const result = await discussionApi.addComment(discussionNumber, body, state.discussionId);
+
+                const formattedComment = formatCommentResponse(
+                    result.comment,
+                    state.authUsername || "You",
+                    avatarUrl
+                );
+
+                dispatch({
+                    type: "REPLACE_COMMENT",
+                    payload: { tempId: tempComment.id, comment: formattedComment },
+                });
+
+                toast.success("Comment posted successfully");
+            } catch (err) {
+                console.error(err);
+                const errorMessage = "Failed to post comment";
+                dispatch({ type: "SET_ERROR", payload: errorMessage });
+                toast.error(errorMessage);
+                throw err;
+            }
+        },
+        [discussionNumber, state.discussionId, state.authUsername, avatarUrl]
+    );
+
+    // Edit comment
+    const editComment = useCallback(
+        async (commentId: string, body: string) => {
+            const previousComment = state.comments.find((c) => c.id === commentId);
+
+            // Optimistic update
+            dispatch({
+                type: "UPDATE_COMMENT",
+                payload: { id: commentId, updates: { body, last_edited_at: new Date().toISOString() } },
+            });
+
+            try {
+                await discussionApi.editComment(discussionNumber, commentId, body);
+                toast.success("Comment updated successfully");
+            } catch (err) {
+                console.error(err);
+                // Revert on error
+                if (previousComment) {
+                    dispatch({
+                        type: "UPDATE_COMMENT",
+                        payload: { id: commentId, updates: { body: previousComment.body, last_edited_at: previousComment.last_edited_at } },
+                    });
+                }
+                toast.error("Failed to update comment");
+                throw err;
+            }
+        },
+        [discussionNumber, state.comments]
+    );
+
+    const addReply = useCallback(
+        async (commentId: string, body: string) => {
+            try {
+                const tempReply = createTempReply(body, state.authUsername || "You", avatarUrl);
+
+                // Optimistically add reply
+                dispatch({ type: "ADD_REPLY", payload: { commentId, reply: tempReply } });
+
+                // If this is the first reply, automatically expand
+                const currentComment = state.comments.find((c) => c.id === commentId);
+                if (currentComment && currentComment.reply_count === 0) {
+                    dispatch({ type: "TOGGLE_EXPANDED", payload: commentId });
+                }
+
+                const result = await discussionApi.addReply(
+                    discussionNumber,
+                    commentId,
+                    body,
+                    state.discussionId
+                );
+
+                dispatch({
+                    type: "REPLACE_REPLY",
+                    payload: { commentId, tempId: tempReply.id, reply: result.reply },
+                });
+
+                dispatch({
+                    type: "UPDATE_COMMENT",
+                    payload: {
+                        id: commentId,
+                        updates: { reply_count: (currentComment?.reply_count ?? 0) + 1 },
+                    },
+                });
+
+                toast.success("Reply posted successfully");
+            } catch (err) {
+                console.error(err);
+                const errorMessage = "Failed to post reply";
+                dispatch({ type: "SET_ERROR", payload: errorMessage });
+                toast.error(errorMessage);
+                throw err;
+            }
+        },
+        [discussionNumber, state.discussionId, state.comments, state.authUsername, avatarUrl]
+    );
+
+    // Edit reply
+    const editReply = useCallback(
+        async (commentId: string, replyId: string, body: string) => {
+            const previousReply = state.loadedReplies[commentId]?.find((r) => r.id === replyId);
+
+            // Optimistic update
+            dispatch({
+                type: "UPDATE_REPLY",
+                payload: { commentId, replyId, updates: { body, last_edited_at: new Date().toISOString() } },
+            });
+
+            try {
+                await discussionApi.editComment(discussionNumber, replyId, body);
+                toast.success("Reply updated successfully");
+            } catch (err) {
+                console.error(err);
+                // Revert on error
+                if (previousReply) {
+                    dispatch({
+                        type: "UPDATE_REPLY",
+                        payload: { commentId, replyId, updates: { body: previousReply.body, last_edited_at: previousReply.last_edited_at } },
+                    });
+                }
+                toast.error("Failed to update reply");
+                throw err;
+            }
+        },
+        [discussionNumber, state.loadedReplies]
+    );
+
+    // Delete comment
+    const deleteComment = useCallback(
+        async (commentId: string) => {
+            const previous = [...state.comments];
+            dispatch({ type: "DELETE_COMMENT", payload: commentId });
+
+            try {
+                await discussionApi.deleteComment(discussionNumber, commentId);
+                toast.success("Comment deleted successfully");
+            } catch (err) {
+                console.error(err);
+                dispatch({ type: "SET_COMMENTS", payload: previous });
+                const errorMessage = "Failed to delete comment";
+                dispatch({ type: "SET_ERROR", payload: errorMessage });
+                toast.error(errorMessage);
+            }
+        },
+        [discussionNumber, state.comments]
+    );
+
+    // Delete reply
+    const deleteReply = useCallback(
+        async (commentId: string, replyId: string) => {
+            const previousReplies = state.loadedReplies[commentId];
+            dispatch({ type: "DELETE_REPLY", payload: { commentId, replyId } });
+
+            try {
+                await discussionApi.deleteComment(discussionNumber, replyId);
+                toast.success("Reply deleted successfully");
+            } catch (err) {
+                console.error(err);
+                dispatch({
+                    type: "SET_LOADED_REPLIES",
+                    payload: { commentId, replies: previousReplies || [] },
+                });
+                const errorMessage = "Failed to delete reply";
+                dispatch({ type: "SET_ERROR", payload: errorMessage });
+                toast.error(errorMessage);
+            }
+        },
+        [discussionNumber, state.loadedReplies]
+    );
+
+    // Toggle reaction (mutually exclusive - like/unlike can't both be active)
+    const toggleReaction = useCallback(
+        async (
+            targetId: string,
+            reaction: ReactionKey,
+            hasReacted: boolean,
+            isReply = false,
+            parentCommentId?: string,
+            hasOppositeReaction = false
+        ) => {
+            if (!state.authUsername) return;
+
+            const oppositeReaction: ReactionKey = reaction === "+1" ? "-1" : "+1";
+
+            // Optimistic updates first for instant UI feedback
+            if (hasOppositeReaction) {
+                dispatch({
+                    type: "OPTIMISTIC_TOGGLE_REACTION",
+                    payload: {
+                        targetId,
+                        reactionType: oppositeReaction,
+                        isReply,
+                        commentId: parentCommentId,
+                        add: false,
+                        username: state.authUsername,
+                    },
+                });
+            }
+
+            dispatch({
+                type: "OPTIMISTIC_TOGGLE_REACTION",
+                payload: {
+                    targetId,
+                    reactionType: reaction,
+                    isReply,
+                    commentId: parentCommentId,
+                    add: !hasReacted,
+                    username: state.authUsername,
+                },
+            });
+
+            // API calls in background (don't block UI)
+            try {
+                const promises: Promise<unknown>[] = [];
+
+                if (hasOppositeReaction) {
+                    promises.push(discussionApi.toggleReaction(discussionNumber, targetId, oppositeReaction, true));
+                }
+                promises.push(discussionApi.toggleReaction(discussionNumber, targetId, reaction, hasReacted));
+
+                await Promise.all(promises);
+            } catch (err) {
+                console.error("Failed to toggle reaction", err);
+                toast.error("Failed to update reaction");
+
+                // Revert all optimistic updates on error
+                if (hasOppositeReaction) {
+                    dispatch({
+                        type: "OPTIMISTIC_TOGGLE_REACTION",
+                        payload: {
+                            targetId,
+                            reactionType: oppositeReaction,
+                            isReply,
+                            commentId: parentCommentId,
+                            add: true,
+                            username: state.authUsername,
+                        },
+                    });
+                }
+                dispatch({
+                    type: "OPTIMISTIC_TOGGLE_REACTION",
+                    payload: {
+                        targetId,
+                        reactionType: reaction,
+                        isReply,
+                        commentId: parentCommentId,
+                        add: hasReacted,
+                        username: state.authUsername,
+                    },
+                });
+            }
+        },
+        [discussionNumber, state.authUsername]
+    );
+
+    // Toggle expanded replies
+    const toggleExpanded = useCallback(
+        (commentId: string) => {
+            const isExpanded = state.expandedCommentId === commentId;
+            dispatch({ type: "TOGGLE_EXPANDED", payload: commentId });
+            if (!isExpanded && !state.loadedReplies[commentId]) {
+                fetchReplies(commentId);
+            }
+        },
+        [state.expandedCommentId, state.loadedReplies, fetchReplies]
+    );
+
+    // Initial fetch of comments
+    useEffect(() => {
+        fetchComments();
+    }, [fetchComments]);
+
+    // Memoized context value
+    const value = useMemo<DiscussionContextType>(
+        () => ({
+            // State values
+            comments: state.comments,
+            discussionId: state.discussionId,
+            loading: state.loading,
+            loadingMore: state.loadingMore,
+            error: state.error,
+            sortBy: state.sortBy,
+            expandedComments: new Set<string>(),
+            loadedReplies: state.loadedReplies,
+            loadedRepliesLoading: state.loadedRepliesLoading,
+            expandedCommentId: state.expandedCommentId,
+            // Pagination
+            total: state.total,
+            hasNextPage: state.hasNextPage,
+
+            // Actions
+            setSortBy: handleSetSortBy,
+            fetchComments,
+            fetchMoreComments,
+            fetchReplies,
+            addComment,
+            editComment,
+            addReply,
+            editReply,
+            deleteComment,
+            deleteReply,
+            toggleReaction,
+            toggleExpanded,
+            hasUserReacted: (reactionUsers: ReactionUser[], reactionType: ReactionKey) =>
+                hasUserReacted(reactionUsers, state.authUsername || "", reactionType),
+            updateCommentOptimistic: (commentId: string, updates: Partial<Comment>) => {
+                dispatch({ type: "UPDATE_COMMENT", payload: { id: commentId, updates } });
+            },
+            updateReplyOptimistic: (commentId: string, replyId: string, updates: Partial<Reply>) => {
+                dispatch({ type: "UPDATE_REPLY", payload: { commentId, replyId, updates } });
+            },
+        }),
+        [
+            state,
+            handleSetSortBy,
+            fetchComments,
+            fetchMoreComments,
+            fetchReplies,
+            addComment,
+            editComment,
+            addReply,
+            editReply,
+            deleteComment,
+            deleteReply,
+            toggleReaction,
+            toggleExpanded,
+        ]
+    );
+
+    return <DiscussionContext.Provider value={value}>{children}</DiscussionContext.Provider>;
+}
